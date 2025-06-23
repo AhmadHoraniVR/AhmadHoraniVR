@@ -125,13 +125,19 @@ class App {
 
             self.loadingBar.visible = false;
 
+            // Load Werewolf Warrior model
             const characterLoader = new GLTFLoader().setPath(self.assetsPath);
             characterLoader.load('Werewolf_Warrior.glb', (gltf) => {
                 const werewolf = gltf.scene;
-                werewolf.position.copy(college.position);
-                werewolf.position.y += 0.5;
+                const box = new THREE.Box3().setFromObject(college);
+                const center = new THREE.Vector3();
+                box.getCenter(center);
+
+                werewolf.position.copy(center);
+                werewolf.position.y += 0.1;
                 werewolf.scale.set(0.8, 0.8, 0.8);
-                self.scene.add(werewolf);
+
+                college.add(werewolf);
             });
 
             self.setupXR();
@@ -150,17 +156,9 @@ class App {
 
         const timeoutId = setTimeout(connectionTimeout, 2000);
 
-        function onSelectStart(event) {
-            this.userData.selectPressed = true;
-        }
-
-        function onSelectEnd(event) {
-            this.userData.selectPressed = false;
-        }
-
-        function onConnected(event) {
-            clearTimeout(timeoutId);
-        }
+        function onSelectStart(event) { this.userData.selectPressed = true; }
+        function onSelectEnd(event) { this.userData.selectPressed = false; }
+        function onConnected(event) { clearTimeout(timeoutId); }
 
         function connectionTimeout() {
             self.useGaze = true;
@@ -233,9 +231,7 @@ class App {
         let blocked = false;
 
         let intersect = this.raycaster.intersectObject(this.proxy);
-        if (intersect.length > 0 && intersect[0].distance < wallLimit) {
-            blocked = true;
-        }
+        if (intersect.length > 0 && intersect[0].distance < wallLimit) blocked = true;
 
         if (!blocked) {
             this.dolly.translateZ(-dt * speed);
@@ -247,26 +243,20 @@ class App {
         dir.normalize();
         this.raycaster.set(pos, dir);
         intersect = this.raycaster.intersectObject(this.proxy);
-        if (intersect.length > 0 && intersect[0].distance < wallLimit) {
-            this.dolly.translateX(wallLimit - intersect[0].distance);
-        }
+        if (intersect.length > 0 && intersect[0].distance < wallLimit) this.dolly.translateX(wallLimit - intersect[0].distance);
 
         dir.set(1, 0, 0);
         dir.applyMatrix4(this.dolly.matrix);
         dir.normalize();
         this.raycaster.set(pos, dir);
         intersect = this.raycaster.intersectObject(this.proxy);
-        if (intersect.length > 0 && intersect[0].distance < wallLimit) {
-            this.dolly.translateX(intersect[0].distance - wallLimit);
-        }
+        if (intersect.length > 0 && intersect[0].distance < wallLimit) this.dolly.translateX(intersect[0].distance - wallLimit);
 
         dir.set(0, -1, 0);
         pos.y += 1.5;
         this.raycaster.set(pos, dir);
         intersect = this.raycaster.intersectObject(this.proxy);
-        if (intersect.length > 0) {
-            this.dolly.position.copy(intersect[0].point);
-        }
+        if (intersect.length > 0) this.dolly.position.copy(intersect[0].point);
 
         this.dolly.quaternion.copy(quaternion);
     }
