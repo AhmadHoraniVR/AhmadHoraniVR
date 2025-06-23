@@ -128,9 +128,7 @@ class App {
             const characterLoader = new GLTFLoader().setPath(self.assetsPath);
             characterLoader.load('Werewolf_Warrior.glb', (gltf) => {
                 const werewolf = gltf.scene;
-                werewolf.position.copy(pos);
-                werewolf.position.z -= 2; // Move 2 units toward player
-                werewolf.position.y += 1.2; // Raise so feet touch ground
+                werewolf.position.set(2, 1.1, -3); // Raised Y to 1.1 to make feet touch ground
                 werewolf.scale.set(3, 3, 3);
                 self.scene.add(werewolf);
             });
@@ -148,18 +146,17 @@ class App {
         const btn = new VRButton(this.renderer);
 
         const self = this;
-
         const timeoutId = setTimeout(connectionTimeout, 2000);
 
-        function onSelectStart(event) {
+        function onSelectStart() {
             this.userData.selectPressed = true;
         }
 
-        function onSelectEnd(event) {
+        function onSelectEnd() {
             this.userData.selectPressed = false;
         }
 
-        function onConnected(event) {
+        function onConnected() {
             clearTimeout(timeoutId);
         }
 
@@ -195,7 +192,9 @@ class App {
 
     buildControllers(parent = this.scene) {
         const controllerModelFactory = new XRControllerModelFactory();
-        const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
+        const geometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)
+        ]);
         const line = new THREE.Line(geometry);
         line.scale.z = 0;
 
@@ -243,6 +242,7 @@ class App {
             pos = this.dolly.getWorldPosition(this.origin);
         }
 
+        // Left, Right, Down collision checks
         dir.set(-1, 0, 0);
         dir.applyMatrix4(this.dolly.matrix);
         dir.normalize();
@@ -295,7 +295,7 @@ class App {
 
             if (this.useGaze && this.gazeController !== undefined) {
                 this.gazeController.update();
-                moveGaze = (this.gazeController.mode == GazeController.Modes.MOVE);
+                moveGaze = (this.gazeController.mode === GazeController.Modes.MOVE);
             }
 
             if (this.selectPressed || moveGaze) {
@@ -321,7 +321,7 @@ class App {
             }
         }
 
-        if (this.immersive != this.renderer.xr.isPresenting) {
+        if (this.immersive !== this.renderer.xr.isPresenting) {
             this.resize();
             this.immersive = this.renderer.xr.isPresenting;
         }
