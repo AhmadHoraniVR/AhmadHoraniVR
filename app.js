@@ -125,13 +125,12 @@ class App {
 
             self.loadingBar.visible = false;
 
+            // Load Werewolf Warrior model
             const characterLoader = new GLTFLoader().setPath(self.assetsPath);
             characterLoader.load('Werewolf_Warrior.glb', (gltf) => {
                 const werewolf = gltf.scene;
-                werewolf.position.copy(pos);
-                werewolf.position.z -= 2; // Move 2 units toward player
-                werewolf.position.y += 1.2; // Raise so feet touch ground
-                werewolf.scale.set(3, 3, 3);
+                werewolf.position.set(0, 0, 3); // Move closer to player
+                werewolf.scale.set(3, 3, 3); // Scale up 3x
                 self.scene.add(werewolf);
             });
 
