@@ -125,12 +125,11 @@ class App {
 
             self.loadingBar.visible = false;
 
-            // Load Werewolf Warrior model
             const characterLoader = new GLTFLoader().setPath(self.assetsPath);
             characterLoader.load('Werewolf_Warrior.glb', (gltf) => {
                 const werewolf = gltf.scene;
-                werewolf.position.set(0, 0, 3); // Move closer to player
-                werewolf.scale.set(3, 3, 3); // Scale up 3x
+                werewolf.position.set(0, 0, 2); // 2 units in front of door
+                werewolf.scale.set(3, 3, 3); // Scaled 3 times larger
                 self.scene.add(werewolf);
             });
 
@@ -150,17 +149,9 @@ class App {
 
         const timeoutId = setTimeout(connectionTimeout, 2000);
 
-        function onSelectStart(event) {
-            this.userData.selectPressed = true;
-        }
-
-        function onSelectEnd(event) {
-            this.userData.selectPressed = false;
-        }
-
-        function onConnected(event) {
-            clearTimeout(timeoutId);
-        }
+        function onSelectStart(event) { this.userData.selectPressed = true; }
+        function onSelectEnd(event) { this.userData.selectPressed = false; }
+        function onConnected(event) { clearTimeout(timeoutId); }
 
         function connectionTimeout() {
             self.useGaze = true;
