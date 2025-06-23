@@ -125,12 +125,12 @@ class App {
 
             self.loadingBar.visible = false;
 
-            // Load Werewolf Warrior model
             const characterLoader = new GLTFLoader().setPath(self.assetsPath);
             characterLoader.load('Werewolf_Warrior.glb', (gltf) => {
                 const werewolf = gltf.scene;
-                werewolf.position.set(2, 0, -3); // Adjust position as needed
-                werewolf.scale.set(0.8, 0.8, 0.8); // Adjust size if needed
+                werewolf.position.copy(college.position);
+                werewolf.position.y += 0.5;
+                werewolf.scale.set(0.8, 0.8, 0.8);
                 self.scene.add(werewolf);
             });
 
@@ -242,7 +242,6 @@ class App {
             pos = this.dolly.getWorldPosition(this.origin);
         }
 
-        // Left, Right, Down collision checks
         dir.set(-1, 0, 0);
         dir.applyMatrix4(this.dolly.matrix);
         dir.normalize();
