@@ -1,4 +1,3 @@
-
 import * as THREE from './libs/three/three.module.js';
 import { GLTFLoader } from './libs/three/jsm/GLTFLoader.js';
 import { DRACOLoader } from './libs/three/jsm/DRACOLoader.js';
@@ -40,6 +39,7 @@ class App{
         this.setEnvironment();
 	
         window.addEventListener( 'resize', this.resize.bind(this) );
+        window.addEventListener('pointerdown', this.onPointerDown.bind(this));
         
         this.clock = new THREE.Clock();
         this.up = new THREE.Vector3(0,1,0);
@@ -56,6 +56,8 @@ class App{
 		this.loadCollege();
         
         this.immersive = false;
+        
+        this.interactiveCube = null; // Added interactive cube property
         
         const self = this;
         
@@ -100,11 +102,8 @@ class App{
         
         const self = this;
 		
-		// Load a glTF resource
 		loader.load(
-			// resource URL
 			'college.glb',
-			// called when the resource is loaded
 			function ( gltf ) {
 
                 const college = gltf.scene.children[0];
@@ -137,26 +136,26 @@ class App{
                 
                 self.loadingBar.visible = false;
 			
+                // Add interactive floating cube
+                const cubeGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+                const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+                self.interactiveCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+                self.interactiveCube.position.set(0, 2, -3);
+                self.scene.add(self.interactiveCube);
+
                 self.setupXR();
 			},
-			// called while loading is progressing
 			function ( xhr ) {
-
 				self.loadingBar.progress = (xhr.loaded / xhr.total);
-				
 			},
-			// called when loading has errors
 			function ( error ) {
-
 				console.log( 'An error happened' );
-
 			}
 		);
 	}
     
     setupXR(){
         this.renderer.xr.enabled = true;
-
         const btn = new VRButton( this.renderer );
         
         const self = this;
@@ -164,15 +163,11 @@ class App{
         const timeoutId = setTimeout( connectionTimeout, 2000 );
         
         function onSelectStart( event ) {
-        
             this.userData.selectPressed = true;
-        
         }
 
         function onSelectEnd( event ) {
-        
             this.userData.selectPressed = false;
-        
         }
         
         function onConnected( event ){
@@ -211,9 +206,7 @@ class App{
     
     buildControllers( parent = this.scene ){
         const controllerModelFactory = new XRControllerModelFactory();
-
         const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, -1 ) ] );
-
         const line = new THREE.Line( geometry );
         line.scale.z = 0;
         
@@ -243,9 +236,7 @@ class App{
         pos.y += 1;
         
 		let dir = new THREE.Vector3();
-        //Store original dolly rotation
         const quaternion = this.dolly.quaternion.clone();
-        //Get rotation for movement from the headset pose
         this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion(this.workingQuaternion) );
 		this.dolly.getWorldDirection(dir);
         dir.negate();
@@ -254,8 +245,8 @@ class App{
         let blocked = false;
 		
 		let intersect = this.raycaster.intersectObject(this.proxy);
-        if (intersect.length>0){
-            if (intersect[0].distance < wallLimit) blocked = true;
+        if (intersect.length>0 && intersect[0].distance < wallLimit){
+            blocked = true;
         }
 		
 		if (!blocked){
@@ -263,39 +254,33 @@ class App{
             pos = this.dolly.getWorldPosition( this.origin );
 		}
 		
-        //cast left
+        // Left, Right, Down collision checks (unchanged)
         dir.set(-1,0,0);
         dir.applyMatrix4(this.dolly.matrix);
         dir.normalize();
         this.raycaster.set(pos, dir);
-
         intersect = this.raycaster.intersectObject(this.proxy);
-        if (intersect.length>0){
-            if (intersect[0].distance<wallLimit) this.dolly.translateX(wallLimit-intersect[0].distance);
+        if (intersect.length>0 && intersect[0].distance<wallLimit){
+            this.dolly.translateX(wallLimit-intersect[0].distance);
         }
 
-        //cast right
         dir.set(1,0,0);
         dir.applyMatrix4(this.dolly.matrix);
         dir.normalize();
         this.raycaster.set(pos, dir);
-
         intersect = this.raycaster.intersectObject(this.proxy);
-        if (intersect.length>0){
-            if (intersect[0].distance<wallLimit) this.dolly.translateX(intersect[0].distance-wallLimit);
+        if (intersect.length>0 && intersect[0].distance<wallLimit){
+            this.dolly.translateX(intersect[0].distance-wallLimit);
         }
 
-        //cast down
         dir.set(0,-1,0);
         pos.y += 1.5;
         this.raycaster.set(pos, dir);
-        
         intersect = this.raycaster.intersectObject(this.proxy);
         if (intersect.length>0){
             this.dolly.position.copy( intersect[0].point );
         }
 
-        //Restore the original rotation
         this.dolly.quaternion.copy( quaternion );
 	}
 		
@@ -309,10 +294,25 @@ class App{
         const camPos = this.dummyCam.getWorldPosition( this.workingVec3 );
         this.ui.updateElement( 'name', info.name );
         this.ui.updateElement( 'info', info.info );
-        this.ui.update();
-        this.ui.lookAt( camPos )
+        this.ui.lookAt( camPos );
         this.ui.visible = true;
         this.boardShown = name;
+    }
+
+    onPointerDown(event){
+        if (!this.interactiveCube) return;
+
+        const mouse = new THREE.Vector2();
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        this.raycaster.setFromCamera(mouse, this.camera);
+
+        const intersects = this.raycaster.intersectObjects([this.interactiveCube]);
+
+        if (intersects.length > 0){
+            this.interactiveCube.material.color.set(Math.random() * 0xffffff);
+        }
     }
 
 	render( timestamp, frame ){
@@ -329,11 +329,10 @@ class App{
             if (this.selectPressed || moveGaze){
                 this.moveDolly(dt);
                 if (this.boardData){
-                    const scene = this.scene;
                     const dollyPos = this.dolly.getWorldPosition( new THREE.Vector3() );
                     let boardFound = false;
                     Object.entries(this.boardData).forEach(([name, info]) => {
-                        const obj = scene.getObjectByName( name );
+                        const obj = this.scene.getObjectByName( name );
                         if (obj !== undefined){
                             const pos = obj.getWorldPosition( new THREE.Vector3() );
                             if (dollyPos.distanceTo( pos ) < 3){
