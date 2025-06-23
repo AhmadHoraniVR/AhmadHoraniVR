@@ -56,13 +56,11 @@ class App {
 
         this.immersive = false;
 
-        const self = this;
-
         fetch('./college.json')
             .then(response => response.json())
             .then(obj => {
-                self.boardShown = '';
-                self.boardData = obj;
+                this.boardShown = '';
+                this.boardData = obj;
             });
     }
 
@@ -92,17 +90,15 @@ class App {
         dracoLoader.setDecoderPath('./libs/three/js/draco/');
         loader.setDRACOLoader(dracoLoader);
 
-        const self = this;
-
-        loader.load('college.glb', function (gltf) {
+        loader.load('college.glb', (gltf) => {
             const college = gltf.scene.children[0];
-            self.scene.add(college);
+            this.scene.add(college);
 
-            college.traverse(function (child) {
+            college.traverse((child) => {
                 if (child.isMesh) {
                     if (child.name.indexOf("PROXY") !== -1) {
                         child.material.visible = false;
-                        self.proxy = child;
+                        this.proxy = child;
                     } else if (child.material.name.indexOf('Glass') !== -1) {
                         child.material.opacity = 0.1;
                         child.material.transparent = true;
@@ -123,54 +119,52 @@ class App {
             obj.position.copy(pos);
             college.add(obj);
 
-            self.loadingBar.visible = false;
+            this.loadingBar.visible = false;
 
-            // Load Werewolf Warrior model
-            const characterLoader = new GLTFLoader().setPath(self.assetsPath);
+            // Load Werewolf Warrior model positioned in front of college center
+            const characterLoader = new GLTFLoader().setPath(this.assetsPath);
             characterLoader.load('Werewolf_Warrior.glb', (gltf) => {
                 const werewolf = gltf.scene;
+
                 const box = new THREE.Box3().setFromObject(college);
                 const center = new THREE.Vector3();
                 box.getCenter(center);
 
-                werewolf.position.copy(center);
-                werewolf.position.y += 0.1;
-                werewolf.scale.set(0.8, 0.8, 0.8);
+                werewolf.position.set(center.x, 0, center.z - 2);
+                werewolf.scale.set(3, 3, 3);
 
-                college.add(werewolf);
+                this.scene.add(werewolf);
             });
 
-            self.setupXR();
-        }, function (xhr) {
-            self.loadingBar.progress = (xhr.loaded / xhr.total);
-        }, function (error) {
+            this.setupXR();
+        }, (xhr) => {
+            this.loadingBar.progress = (xhr.loaded / xhr.total);
+        }, (error) => {
             console.log('An error happened');
         });
     }
 
     setupXR() {
         this.renderer.xr.enabled = true;
-        const btn = new VRButton(this.renderer);
+        new VRButton(this.renderer);
 
-        const self = this;
-
-        const timeoutId = setTimeout(connectionTimeout, 2000);
-
-        function onSelectStart(event) { this.userData.selectPressed = true; }
-        function onSelectEnd(event) { this.userData.selectPressed = false; }
-        function onConnected(event) { clearTimeout(timeoutId); }
-
-        function connectionTimeout() {
-            self.useGaze = true;
-            self.gazeController = new GazeController(self.scene, self.dummyCam);
-        }
+        const timeoutId = setTimeout(() => {
+            this.useGaze = true;
+            this.gazeController = new GazeController(this.scene, this.dummyCam);
+        }, 2000);
 
         this.controllers = this.buildControllers(this.dolly);
 
         this.controllers.forEach((controller) => {
-            controller.addEventListener('selectstart', onSelectStart);
-            controller.addEventListener('selectend', onSelectEnd);
-            controller.addEventListener('connected', onConnected);
+            controller.addEventListener('selectstart', function () {
+                this.userData.selectPressed = true;
+            });
+            controller.addEventListener('selectend', function () {
+                this.userData.selectPressed = false;
+            });
+            controller.addEventListener('connected', () => {
+                clearTimeout(timeoutId);
+            });
         });
 
         const config = {
@@ -179,6 +173,7 @@ class App {
             name: { fontSize: 50, height: 70 },
             info: { position: { top: 70, backgroundColor: "#ccc", fontColor: "#000" } }
         };
+
         const content = {
             name: "name",
             info: "info"
@@ -228,26 +223,18 @@ class App {
         dir.negate();
         this.raycaster.set(pos, dir);
 
-        let blocked = false;
-
         let intersect = this.raycaster.intersectObject(this.proxy);
-        if (intersect.length > 0 && intersect[0].distance < wallLimit) blocked = true;
-
-        if (!blocked) {
+        if (!(intersect.length > 0 && intersect[0].distance < wallLimit)) {
             this.dolly.translateZ(-dt * speed);
             pos = this.dolly.getWorldPosition(this.origin);
         }
 
-        dir.set(-1, 0, 0);
-        dir.applyMatrix4(this.dolly.matrix);
-        dir.normalize();
+        dir.set(-1, 0, 0).applyMatrix4(this.dolly.matrix).normalize();
         this.raycaster.set(pos, dir);
         intersect = this.raycaster.intersectObject(this.proxy);
         if (intersect.length > 0 && intersect[0].distance < wallLimit) this.dolly.translateX(wallLimit - intersect[0].distance);
 
-        dir.set(1, 0, 0);
-        dir.applyMatrix4(this.dolly.matrix);
-        dir.normalize();
+        dir.set(1, 0, 0).applyMatrix4(this.dolly.matrix).normalize();
         this.raycaster.set(pos, dir);
         intersect = this.raycaster.intersectObject(this.proxy);
         if (intersect.length > 0 && intersect[0].distance < wallLimit) this.dolly.translateX(intersect[0].distance - wallLimit);
@@ -262,11 +249,11 @@ class App {
     }
 
     get selectPressed() {
-        return (this.controllers !== undefined && (this.controllers[0].userData.selectPressed || this.controllers[1].userData.selectPressed));
+        return this.controllers && (this.controllers[0].userData.selectPressed || this.controllers[1].userData.selectPressed);
     }
 
     showInfoboard(name, info, pos) {
-        if (this.ui === undefined) return;
+        if (!this.ui) return;
         this.ui.position.copy(pos).add(this.workingVec3.set(0, 1.3, 0));
         const camPos = this.dummyCam.getWorldPosition(this.workingVec3);
         this.ui.updateElement('name', info.name);
@@ -276,15 +263,15 @@ class App {
         this.boardShown = name;
     }
 
-    render(timestamp, frame) {
+    render() {
         const dt = this.clock.getDelta();
 
         if (this.renderer.xr.isPresenting) {
             let moveGaze = false;
 
-            if (this.useGaze && this.gazeController !== undefined) {
+            if (this.useGaze && this.gazeController) {
                 this.gazeController.update();
-                moveGaze = (this.gazeController.mode == GazeController.Modes.MOVE);
+                moveGaze = (this.gazeController.mode === GazeController.Modes.MOVE);
             }
 
             if (this.selectPressed || moveGaze) {
@@ -294,7 +281,7 @@ class App {
                     let boardFound = false;
                     Object.entries(this.boardData).forEach(([name, info]) => {
                         const obj = this.scene.getObjectByName(name);
-                        if (obj !== undefined) {
+                        if (obj) {
                             const pos = obj.getWorldPosition(new THREE.Vector3());
                             if (dollyPos.distanceTo(pos) < 3) {
                                 boardFound = true;
@@ -310,7 +297,7 @@ class App {
             }
         }
 
-        if (this.immersive != this.renderer.xr.isPresenting) {
+        if (this.immersive !== this.renderer.xr.isPresenting) {
             this.resize();
             this.immersive = this.renderer.xr.isPresenting;
         }
