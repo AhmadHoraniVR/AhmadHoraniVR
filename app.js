@@ -1,4 +1,49 @@
-workingVec3 = new THREE.Vector3();
+import * as THREE from './libs/three/three.module.js';
+import { GLTFLoader } from './libs/three/jsm/GLTFLoader.js';
+import { DRACOLoader } from './libs/three/jsm/DRACOLoader.js';
+import { RGBELoader } from './libs/three/jsm/RGBELoader.js';
+import { Stats } from './libs/stats.module.js';
+import { LoadingBar } from './libs/LoadingBar.js';
+import { VRButton } from './libs/VRButton.js';
+import { CanvasUI } from './libs/CanvasUI.js';
+import { GazeController } from './libs/GazeController.js';
+import { XRControllerModelFactory } from './libs/three/jsm/XRControllerModelFactory.js';
+
+class App {
+    constructor() {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+
+        this.assetsPath = './assets/';
+
+        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 500);
+        this.camera.position.set(0, 1.6, 0);
+
+        this.dolly = new THREE.Object3D();
+        this.dolly.position.set(0, 0, 10);
+        this.dolly.add(this.camera);
+        this.dummyCam = new THREE.Object3D();
+        this.camera.add(this.dummyCam);
+
+        this.scene = new THREE.Scene();
+        this.scene.add(this.dolly);
+
+        const ambient = new THREE.HemisphereLight(0xFFFFFF, 0xAAAAAA, 0.8);
+        this.scene.add(ambient);
+
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        container.appendChild(this.renderer.domElement);
+        this.setEnvironment();
+
+        window.addEventListener('resize', this.resize.bind(this));
+
+        this.clock = new THREE.Clock();
+        this.up = new THREE.Vector3(0, 1, 0);
+        this.origin = new THREE.Vector3();
+        this.workingVec3 = new THREE.Vector3();
         this.workingQuaternion = new THREE.Quaternion();
         this.raycaster = new THREE.Raycaster();
 
@@ -83,8 +128,8 @@ workingVec3 = new THREE.Vector3();
             const characterLoader = new GLTFLoader().setPath(self.assetsPath);
             characterLoader.load('Werewolf_Warrior.glb', (gltf) => {
                 const werewolf = gltf.scene;
-                werewolf.position.set(0, 0, 2); // 2 units in front of door
-                werewolf.scale.set(3, 3, 3); // Scaled 3 times larger
+                werewolf.position.set(2, 1.1, -3); // Raised Y to 1.1 to make feet touch ground
+                werewolf.scale.set(3, 3, 3);
                 self.scene.add(werewolf);
             });
 
@@ -101,12 +146,19 @@ workingVec3 = new THREE.Vector3();
         const btn = new VRButton(this.renderer);
 
         const self = this;
-
         const timeoutId = setTimeout(connectionTimeout, 2000);
 
-        function onSelectStart(event) { this.userData.selectPressed = true; }
-        function onSelectEnd(event) { this.userData.selectPressed = false; }
-        function onConnected(event) { clearTimeout(timeoutId); }
+        function onSelectStart() {
+            this.userData.selectPressed = true;
+        }
+
+        function onSelectEnd() {
+            this.userData.selectPressed = false;
+        }
+
+        function onConnected() {
+            clearTimeout(timeoutId);
+        }
 
         function connectionTimeout() {
             self.useGaze = true;
@@ -140,7 +192,9 @@ workingVec3 = new THREE.Vector3();
 
     buildControllers(parent = this.scene) {
         const controllerModelFactory = new XRControllerModelFactory();
-        const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
+        const geometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)
+        ]);
         const line = new THREE.Line(geometry);
         line.scale.z = 0;
 
@@ -188,6 +242,7 @@ workingVec3 = new THREE.Vector3();
             pos = this.dolly.getWorldPosition(this.origin);
         }
 
+        // Left, Right, Down collision checks
         dir.set(-1, 0, 0);
         dir.applyMatrix4(this.dolly.matrix);
         dir.normalize();
@@ -240,7 +295,7 @@ workingVec3 = new THREE.Vector3();
 
             if (this.useGaze && this.gazeController !== undefined) {
                 this.gazeController.update();
-                moveGaze = (this.gazeController.mode == GazeController.Modes.MOVE);
+                moveGaze = (this.gazeController.mode === GazeController.Modes.MOVE);
             }
 
             if (this.selectPressed || moveGaze) {
@@ -266,7 +321,7 @@ workingVec3 = new THREE.Vector3();
             }
         }
 
-        if (this.immersive != this.renderer.xr.isPresenting) {
+        if (this.immersive !== this.renderer.xr.isPresenting) {
             this.resize();
             this.immersive = this.renderer.xr.isPresenting;
         }
